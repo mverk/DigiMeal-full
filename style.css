@@ -1,0 +1,13 @@
+
+
+.square-window {
+    width: 1200px;
+    height: 600px;
+    opacity: 0;
+    /* Add more styles as needed */
+  }
+  
+.button-window {
+    width: 350px;
+    height: 300px;
+}
