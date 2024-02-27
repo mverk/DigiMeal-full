@@ -44,20 +44,7 @@ body {
     margin-top: 20px;
     margin-bottom: 10px;
   }
-  
-  ul {
-    list-style: none;
-    padding: 0;
-  }
-  
-  li {
-    margin-bottom: 5px;
-    border: 1px solid #ccc;
-    padding: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+
   
   button {
     background-color: #008CBA;
