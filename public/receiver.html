@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ordered Meals</title>
+  <link rel="stylesheet" type="text/css" href="main.css">
+</head>
+<body>
+  <h1>Ordered Meals:</h1>
+  <ul id="meals-list"></ul>
+  <button id="service-button" onclick="requestService()">Service</button>
+
+  <script>
+    // Function to update the status of a specific order on the server
+    function updateStatus(id, status) {
+      fetch('/update-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id, status })
+      })
+      .then(() => fetchOrderedMeals())
+      .catch(error => console.error('Error updating status:', error));
+    }
+
+    // Function to confirm the order and remove it from the system
+    function confirmOrder(id) {
+      fetch('/confirm-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id })
+      })
+      .then(() => fetchOrderedMeals())
+      .catch(error => console.error('Error confirming order:', error));
+    }
+
+    // Function to render the meals list with buttons
+    function renderMealsList(meals) {
+      const mealsList = document.getElementById('meals-list');
+      mealsList.innerHTML = '';
+
+      meals.forEach(meal => {
+        const listItem = document.createElement('li');
+        listItem.textContent = `Table: ${meal.tableNumber}, ${meal.name} [${meal.status}]`;
+        listItem.dataset.id = meal.id;
+        listItem.dataset.meal = meal.name;
+        listItem.dataset.tableNumber = meal.tableNumber;
+
+        const startPreparationBtn = document.createElement('button');
+        startPreparationBtn.textContent = 'Start Preparation';
+        startPreparationBtn.addEventListener('click', () => {
+          updateStatus(meal.id, 'Preparing');
+        });
+
+        const pickupBtn = document.createElement('button');
+        pickupBtn.textContent = 'Ready';
+        pickupBtn.addEventListener('click', () => {
+          updateStatus(meal.id, 'Ready to be picked up');
+        });
+
+        listItem.appendChild(startPreparationBtn);
+        listItem.appendChild(pickupBtn);
+
+        if (meal.status === 'Ready to be picked up') {
+          const confirmBtn = document.createElement('button');
+          confirmBtn.textContent = 'Confirmed';
+          confirmBtn.addEventListener('click', () => {
+            confirmOrder(meal.id);
+          });
+
+          listItem.appendChild(confirmBtn);
+        }
+
+        mealsList.appendChild(listItem);
+      });
+    }
+
+    // Function to fetch the ordered meals from the server and update the list
+    function fetchOrderedMeals() {
+      fetch('/ordered-meals')
+        .then(response => response.json())
+        .then(data => renderMealsList(data))
+        .catch(error => console.error('Error fetching ordered meals:', error));
+    }
+
+    // Fetch ordered meals on page load
+    fetchOrderedMeals();
+
+    function requestService() {
+      // Establish a WebSocket connection with the client
+      const socket = new WebSocket('ws://localhost:3000');
+      socket.onopen = () => {
+        // Send a service request message to the client
+        socket.send(JSON.stringify({ type: 'service_request', message: 'Service Required' }));
+        // Close the WebSocket connection after sending the message
+        socket.close();
+      };
+    }
+  </script>
+</body>
+</html>

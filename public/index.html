@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DigiEat Client</title>
+  <link rel="stylesheet" type="text/css" href="main.css">
+</head>
+<body>
+  <h1>Select a Meal:</h1>
+  <form id="order-form" action="/selected-meal" method="post">
+    <label for="meal">Select a meal:</label><br>
+    <input type="radio" id="SpareribsZoet" name="meal" value="Spareribs Zoet" data-image="chicken.jpg">
+    <label for="SpareribsZoet">Spareribs Zoet</label><br>
+    <input type="radio" id="SpareribsPittig" name="meal" value="Spareribs Pittig" data-image="chicken.jpg">
+    <label for="SpareribsPittig">Spareribs Pittig</label><br>
+    <input type="radio" id="SpareribsKnof" name="meal" value="Spareribs Knoflook" data-image="chicken.jpg">
+    <label for="SpareribsKnof">Spareribs Knof</label><br>
+    <input type="radio" id="BDM" name="meal" value="Biefstuk de Moriaan" data-image="pasta.jpg">
+    <label for="BDM">Biefstuk De Moriaan</label><br>
+
+    <input type="radio" id="LS" name="meal" value="Ladysteak" data-image="pasta.jpg">
+    <label for="LS">Lady Steak</label><br>
+
+    <input type="radio" id="Schnitzel" name="meal" value="Schnitzel Klassiek" data-image="pasta.jpg">
+    <label for="Schnitzel">Schitzel</label><br>
+
+    <input type="radio" id="SchnitzelGe" name="meal" value="Schnitzel Gegratineerd" data-image="pasta.jpg">
+    <label for="SchnitzelGe">Schnitzel gegratineerd</label><br>
+
+    <input type="radio" id="MixedGri" name="meal" value="Mixed Grill" data-image="pasta.jpg">
+    <label for="MixedGri">Mixed Grill</label><br>
+
+    <input type="radio" id="Vleesplateau" name="meal" value="Vleesplateau" data-image="pasta.jpg">
+    <label for="Vleesplateau">Vleesplateau</label><br>
+
+    <label for="customMeal">Or enter a custom meal:</label>
+    <input type="text" id="customMeal" name="customMeal">
+
+    <label for="tableNumber">Enter Table Number:</label>
+    <input type="text" id="tableNumber" name="tableNumber" required><br>
+
+    <input type="submit" value="Submit">
+  </form>
+
+  <h2>Current Order:</h2>
+  <ul id="client-ordered-meals"></ul>
+
+  <script>
+    // Function to add a new order item to the client-side list
+    function addOrderToList(id, meal, status, tableNumber) {
+      const clientOrderedMeals = document.getElementById('client-ordered-meals');
+      const existingListItem = document.querySelector(`[data-meal="${meal}"][data-table-number="${tableNumber}"]`);
+      if (existingListItem) {
+        // If an order with the same meal and table number already exists, update its status
+        existingListItem.textContent = `Table: ${tableNumber}, ${meal} [${status}]`;
+        existingListItem.dataset.id = id;
+      } else {
+        // Otherwise, create a new list item with the order details
+        const listItem = document.createElement('li');
+        listItem.textContent = `Table: ${tableNumber}, ${meal} [${status}]`;
+        listItem.dataset.id = id;
+        listItem.dataset.meal = meal;
+        listItem.dataset.tableNumber = tableNumber;
+        clientOrderedMeals.appendChild(listItem);
+      }
+    }
+  
+    // Function to update the status of a specific order item
+    function updateStatus(id, status) {
+      const clientOrderedMeals = document.getElementById('client-ordered-meals');
+      const listItems = clientOrderedMeals.getElementsByTagName('li');
+      for (let i = 0; i < listItems.length; i++) {
+        const listItem = listItems[i];
+        if (listItem.dataset.id === id) {
+          listItem.textContent = `Table: ${listItem.dataset.tableNumber}, ${listItem.dataset.meal} [${status}]`;
+          break;
+        }
+      }
+    }
+  
+    // Function to confirm the order and remove it from the system
+    function confirmOrder(id) {
+      fetch('/confirm-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id })
+      })
+      .then(() => fetchOrderedMeals())
+      .catch(error => console.error('Error confirming order:', error));
+    }
+  
+    // Function to render the meals list with buttons
+    function renderMealsList(meals) {
+      const mealsList = document.getElementById('client-ordered-meals');
+      mealsList.innerHTML = '';
+  
+      meals.forEach(meal => {
+        const listItem = document.createElement('li');
+        listItem.textContent = `Table: ${meal.tableNumber}, ${meal.name} [${meal.status}]`;
+        listItem.dataset.id = meal.id;
+        listItem.dataset.meal = meal.name;
+        listItem.dataset.tableNumber = meal.tableNumber;
+  
+        if (meal.status === 'Awaiting preparation') {
+          
+        } else if (meal.status === 'Ready to be picked up') {
+          
+  
+          if (!document.querySelector(`[data-id="${meal.id}"] button[data-action="confirm"]`)) {
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = 'Confirmed';
+            confirmBtn.dataset.action = 'confirm';
+            confirmBtn.addEventListener('click', () => {
+              confirmOrder(meal.id);
+            });
+            listItem.appendChild(confirmBtn);
+          }
+        }
+  
+        mealsList.appendChild(listItem);
+      });
+    }
+  
+    // Function to fetch the ordered meals from the server and update the list
+    function fetchOrderedMeals() {
+      fetch('/ordered-meals')
+        .then(response => response.json())
+        .then(data => renderMealsList(data))
+        .catch(error => console.error('Error fetching ordered meals:', error));
+    }
+  
+    // Function to handle service request from the receiver
+    function handleServiceRequest() {
+      // Display the custom alert with the "Dismiss" button
+      const customAlert = document.createElement('div');
+      customAlert.className = 'custom-alert';
+      customAlert.textContent = 'Service required';
+      const dismissBtn = document.createElement('button');
+      dismissBtn.textContent = 'Dismiss';
+      dismissBtn.addEventListener('click', () => {
+        document.body.removeChild(customAlert);
+      });
+      customAlert.appendChild(dismissBtn);
+      document.body.appendChild(customAlert);
+    }
+  
+    // WebSocket connection handling
+    const ws = new WebSocket('ws://localhost:3000');
+    ws.addEventListener('message', (event) => {
+      const message = event.data;
+      if (message === 'service') {
+        handleServiceRequest();
+      }
+    });
+  
+    // Handle form submission
+    document.getElementById('order-form').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const formData = new FormData(event.target);
+      const selectedMeal = formData.get('meal');
+      const customMeal = formData.get('customMeal'); // Get the custom meal input
+      const tableNumber = formData.get('tableNumber');
+  
+      // Determine the meal to send to the server (selected or custom)
+      const mealToSend = customMeal ? customMeal : selectedMeal;
+  
+      addOrderToList('', mealToSend, 'Awaiting preparation', tableNumber);
+  
+      // Send the selected meal (or custom meal) and table number to the server
+      fetch('/selected-meal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ meal: mealToSend, tableNumber, customMeal }) // Include customMeal
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Update the id of the order item and set it to the returned id from the server
+        const listItem = document.querySelector(`[data-meal="${mealToSend}"][data-table-number="${tableNumber}"]`);
+        listItem.dataset.id = data.id;
+      })
+      .catch(error => console.error('Error sending selected meal:', error));
+    });
+  
+    // Fetch ordered meals on page load and refresh every 5 seconds
+    fetchOrderedMeals();
+    setInterval(fetchOrderedMeals, 5000); // 5 seconds
+  </script>
+  
+</body>
+</html>
